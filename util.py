@@ -60,7 +60,7 @@ def load_data(file_path):
     user_timediff_seq = []
     user_current_time = defaultdict(float)
     user_previous_itemid_seq = []
-    user_latest_itemid = defaultdict(lambda: num_items)
+    user_latest_itemid = defaultdict(lambda: num_items-1)
     for idx,user in enumerate(user_seq):
         timestamp = timestamp_seq[idx]
         user_timediff_seq.append(timestamp - user_current_time[user])

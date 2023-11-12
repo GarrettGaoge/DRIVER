@@ -31,7 +31,7 @@ def train(arg):
     log.write("Starting at:\n")
     log.write(time.asctime(time.localtime(time.time())))
     log.write('\n')
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(arg.gpuid)
+    os.environ['cuda_VISIBLE_DEVICES'] = str(arg.gpuid)
 
     # LOAD DATA
     [num_users, user_seq, user_timediff_seq, user_previous_itemid_seq,
@@ -120,10 +120,10 @@ def train(arg):
                                 item_timediffs_tensor = Variable(torch.Tensor(ut.current_tbatches_item_timediffs[batch]).cuda()).unsqueeze(1)
 
                                 tbatch_itemids_previous = torch.LongTensor(ut.current_tbatches_previous_item[batch]).cuda()
-                                item_embedding_previous = item_embd[tbatch_itemids_previous,:]
-                                item_next_embedding_previous = item_next_embd[tbatch_itemids_previous,:]
-                                user_embd_input = user_embd[tbatch_userids, :]
-                                item_embd_input = item_embd[tbatch_itemids, :]
+                                item_embedding_previous = item_embd[tbatch_itemids_previous,:].cuda()
+                                item_next_embedding_previous = item_next_embd[tbatch_itemids_previous,:].cuda()
+                                user_embd_input = user_embd[tbatch_userids, :].cuda()
+                                item_embd_input = item_embd[tbatch_itemids, :].cuda()
 
                                 # PROJECT USER EMBEDDING
                                 user_projected_embd = model.forward(user_embd_input, item_embedding_previous,
@@ -160,7 +160,7 @@ def train(arg):
 
                                 next_input = torch.cat((user_embd_input, item_embd_input), dim=1).detach()
                                 item_embd_out_next = model.forward(next_input,
-                                                                   item_next_embedding_previous * room_count[tbatch_itemids_previous],
+                                                                   item_next_embedding_previous.detach() * room_count[tbatch_itemids_previous],
                                                                    timediffs=None,
                                                                    select='item_next_update')
                                 room_count[tbatch_itemids_previous] += 1
@@ -212,15 +212,15 @@ def train(arg):
 def main():
     train_file = './data/train.pkl'
     embd_size = 128
-    epochs = 60
+    epochs = 5
     time_unit = 1
-    lr = 3e-4
+    lr = 1e-6
     gpuid = 0
     seed = 2
 
     torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    # torch.cuda.manual_seed(seed)
+    # torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)  # Numpy module.
     random.seed(seed)  # Python random module.
     torch.backends.cudnn.benchmark = False

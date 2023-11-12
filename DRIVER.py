@@ -67,7 +67,7 @@ class DRIVER(nn.Module):
         X_out = self.prediction_layer(user_item_embd)
         return X_out
 
-    def aggregate_function(self, item_embd, user_embd, item_cur_users,
+    def aggregate_function(self, user_embd, item_embd, item_cur_users,
                            current_item, current_user):
 
         if type(current_item).__name__ == 'list':
