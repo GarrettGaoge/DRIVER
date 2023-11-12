@@ -1,10 +1,10 @@
 import argparse
 
-### 定义一些需要用到的参数
+# Some arguments
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='DEPIE')
-    parser.add_argument('--train_file', nargs='?',default='../data/interactions.csv',
+    parser = argparse.ArgumentParser(description='DRIVER')
+    parser.add_argument('--train_file', nargs='?',default='./data/interactions.csv',
                         help='The file path of training data.')
     parser.add_argument('--embd_size', type=int, default=128,
                         help='The embedding size.')

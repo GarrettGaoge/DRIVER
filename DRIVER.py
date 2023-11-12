@@ -3,8 +3,6 @@ import torch.nn as nn
 from torch.nn import functional as F
 import math
 
-### 定义模型
-
 class NormalLinear(nn.Linear):
     def reset_parameters(self):
         stdv = 1. / math.sqrt(self.weight.size(1))
@@ -69,49 +67,30 @@ class DRIVER(nn.Module):
         X_out = self.prediction_layer(user_item_embd)
         return X_out
 
-    def aggregate_function(self, item_embd, user_embd, item_cur_users, user2id, id2item,
+    def aggregate_function(self, item_embd, user_embd, item_cur_users,
                            current_item, current_user):
+
         if type(current_item).__name__ == 'list':
             aggred_item_list = []
             for idx, itemid in enumerate(current_item):
                 userid = current_user[idx]
                 other_users = item_cur_users[itemid]
-                total_input = list()
-                for other in other_users:
-                    other_id = user2id[str(other)]
-                    if other_id == userid:
-                        continue
-                    total_input.append(other_id)
-                if len(total_input)==0:
+                if len(other_users)==0:
                     aggred_user_embd = torch.zeros_like(user_embd[0,:]).unsqueeze(dim=0)
                 else:
-                    total_input = torch.LongTensor(total_input).cuda()
-                    aggred_user_embd = self.aggregate_users(user_embd[total_input,:]).unsqueeze(dim=0)
-                # pkl.dump(userid, f, pkl.HIGHEST_PROTOCOL)
+                    aggred_user_embd = self.aggregate_users(user_embd[other_users,:]).unsqueeze(dim=0)
                 aggred_item_embd = self.combine_user_room(user_embd[userid],
                                                           item_embd[itemid,:],
                                                           aggred_user_embd)
                 aggred_item_list.append(aggred_item_embd)
-            return torch.cat(aggred_item_list, dim=0)
+            return F.normalize(torch.cat(aggred_item_list, dim=0), dim=-1)
 
         other_users = item_cur_users[current_item]
-        total_input = list()
-        for other in other_users:
-            other_id = user2id[str(other)]
-            if other_id == current_user:
-                continue
-            total_input.append(other_id)
-        total_input = torch.LongTensor(total_input).cuda()
-        if len(total_input)==0:
-            aggred_user_embd = torch.zeros_like(user_embd[0,:]).unsqueeze(dim=0)
-        else:
-            aggred_user_embd = self.aggregate_users(user_embd[total_input,:]).unsqueeze(dim=0)
-        # if f:
-        #     pkl.dump([current_user, current_item], f, pkl.HIGHEST_PROTOCOL)
+        aggred_user_embd = self.aggregate_users(user_embd[other_users, :]).unsqueeze(dim=0)
         aggred_item_embd = self.combine_user_room(user_embd[current_user],
                                                   item_embd[current_item],
                                                   aggred_user_embd)
-        return aggred_item_embd
+        return F.normalize(aggred_item_embd, dim=-1)
 
     def combine_user_room(self, user, room, other_users):
         user = user.clone()
@@ -124,7 +103,6 @@ class DRIVER(nn.Module):
                                                           room.unsqueeze(dim=0)),
                                                          dim=1)))
         user_at = torch.exp(user_at)/(torch.exp(user_at)+torch.exp(room_at))
-        # room_at = torch.exp(room_at)/(torch.exp(user_at)+torch.exp(room_at))
         room_at = 1-user_at
         return user_at * other_users + room_at * room
 

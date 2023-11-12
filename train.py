@@ -1,15 +1,13 @@
-from room_room_util import *
-import room_room_util as ut
+from util import *
+import util as ut
 import os
 from DRIVER import *
 from torch import optim
 from tqdm import trange
 from torch.autograd import Variable
 from collections import defaultdict
-import multiprocessing
 import random
 import time
-import pickle as pkl
 
 # user average pooling to aggregate the next room embeddings
 
@@ -18,38 +16,33 @@ class Args():
         self.train_file = train_file
         self.embd_size = embd_size
         self.lr = lr
-        # self.epochs = epochs
-        self.epochs = 60
+        self.epochs = epochs
         self.time_unit = time_unit
         self.gpuid = gpuid
         self.seed = seed
 
 def train(arg):
-    # log = open("starmaker_run_%d.log" % arg.seed, 'a')
-    log = open("1008train",'a')
+    """
+    To train the model
+    """
+
+    # SET LOG
+    log = open("DRIVER-training.log",'a')
     log.write("Starting at:\n")
     log.write(time.asctime(time.localtime(time.time())))
     log.write('\n')
     os.environ['CUDA_VISIBLE_DEVICES'] = str(arg.gpuid)
-    # DEFINE MODEL TYPE
-    # model_type = 'DRIVER_more_%d_%f_seed_%d' % (idx,arg.lr, arg.seed)
-    # model_type = 'DRIVER_embd_size=%d'%arg.embd_size
-    model_type = 'DRIVER_%f_seed_%d' % (arg.lr, arg.seed)
+
     # LOAD DATA
-    [user2id, user_id_seq, user_timediff_seq, user_previous_itemid_seq,
-     item2id, item_id_seq, item_timediff_seq, timestamp_seq,
-     train_end_idx, test_start_idx, all_start_time,
-     id2item, id2user, event_seq, duration_seq] = load_data(arg.train_file)
-    # DATA INFO
-    num_items = len(item2id) + 1
-    num_users = len(user2id)
-    num_interactions = len(user_id_seq)
-    test_end_idx = num_interactions
-    # TIME RANGE TO DO A UPDATE
+    [num_users, user_seq, user_timediff_seq, user_previous_itemid_seq,
+     num_items, item_seq, item_timediff_seq, timestamp_seq] = load_data(arg.train_file)
+
     tbatch_timespan = arg.time_unit * 3600 * 24
+
     # CONSTRUCT MODEL AND LOSS FUNCTION
-    model = DEPIE(num_users, num_items, arg.embd_size).cuda()
+    model = DRIVER(num_users, num_items, arg.embd_size).cuda()
     MSELoss = nn.MSELoss()
+
     # INITIALIZATION
     initial_user_embd = nn.Parameter(F.normalize(torch.rand(arg.embd_size).cuda(), dim=0))
     initial_item_embd = nn.Parameter(F.normalize(torch.rand(arg.embd_size).cuda(), dim=0))
@@ -62,45 +55,38 @@ def train(arg):
     item_next_embd = initial_item_next_embd.repeat(num_items, 1)
     user_embd_static = Variable(torch.eye(num_users).cuda())
     item_embd_static = Variable(torch.eye(num_items).cuda())
+
     # OPTIM
     lr = arg.lr
     opt = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
 
-    # SET FILE FOR TENSORBOARD
-    # board_file = './boards/'+model_type+'/'
-    # isExists = os.path.exists(board_file)
-    # if isExists:
-    #     os.removedirs(board_file)
-    # writer = SummaryWriter(board_file)
     # GET THE ROOM STATE
-    with open('../data/room_state.pkl','rb') as f:
+    with open('./data/room_state.pkl','rb') as f:
         room_state = pickle.load(f)
-    # BEGIN TRAINING
+
+    # TRAINING
     print('*** Training the model. ***')
     with trange(arg.epochs) as epochs:
         for epoch in epochs:
-            last_true = dict()
             epochs.set_description('Epoch %d of %d' % (epoch, arg.epochs))
             opt.zero_grad()
             reinitialize_tbatches()
             total_loss, loss = 0, 0
             total_pred_loss = 0
+
             # RECORD WHICH USERS ARE IN EACH ROOM NOW
             item_cur_users = defaultdict(dict)
+
             # INITIALIZATION FOR EACH EPOCH
             tbatch_start_time = None
-            tbatch_to_insert = -1
             room_count = torch.zeros((num_items,1)).cuda()
             # ENUMERATE EACH SAMPLE
-            with trange(train_end_idx) as train_samples:
+            with trange(len(user_seq)) as train_samples:
                 for train_sample in train_samples:
                     train_samples.set_description('Processed %d-th interactions' % train_sample)
                     # GET EACH SMAPLE'S INFO
-                    event = event_seq[train_sample]
-                    if event == 'neg':
-                        continue
-                    userid = user_id_seq[train_sample]
-                    itemid = item_id_seq[train_sample]
+                    userid = user_seq[train_sample]
+                    itemid = item_seq[train_sample]
                     user_timediff = user_timediff_seq[train_sample]
                     item_timediff = item_timediff_seq[train_sample]
                     # TBATCH
@@ -118,9 +104,9 @@ def train(arg):
                     if tbatch_start_time is None:
                         tbatch_start_time = timestamp
                     # GET CURRENT USERS IN THE ROOM
-                    item_cur_users[tbatch_to_insert][itemid] = room_state[int(id2item[itemid])][int(timestamp+all_start_time)]
+                    item_cur_users[tbatch_to_insert][itemid] = room_state[itemid][timestamp]
                     # UPDATE
-                    if (timestamp - tbatch_start_time > tbatch_timespan) | (train_sample == train_end_idx-1):
+                    if timestamp - tbatch_start_time > tbatch_timespan:
                         tbatch_start_time = timestamp
                         # ENUMERATE THE BATCHES
                         with trange(len(ut.current_tbatches_user)) as batches:
@@ -143,13 +129,6 @@ def train(arg):
                                 user_projected_embd = model.forward(user_embd_input, item_embedding_previous,
                                                                     timediffs=user_timediffs_tensor,
                                                                     select='project')
-                                # GET THE PREVIOUS STATE FOR EACH USER
-                                # last_aggred = []
-                                for idx,oneuser in enumerate(tbatch_userids):
-                                    if oneuser not in last_true:
-                                        last_true[oneuser] = item_embedding_previous[idx,:].detach().unsqueeze(0)
-                                    # last_aggred.append(last_true[oneuser])
-                                # last_aggred = torch.cat(last_aggred, dim=0)
 
                                 # CONSTRUCT EMBEDDING FOR PREDICTION(ONLY PREDICT POS ROOMS)
                                 user_item_embd = torch.cat((user_projected_embd,
@@ -159,18 +138,14 @@ def train(arg):
                                 # PREDICT
                                 predicted_item_embd = model.predict_item_embd(user_item_embd)
                                 # GENERATE THE TRUE STATE FOR EACH ROOM
-                                item_state = model.aggregate_function(item_cur_users[batch],
-                                                                      user2id, id2item,
+                                item_state = model.aggregate_function(user_embd.detach(),
+                                                                      item_embd.detach(),
+                                                                      item_cur_users[batch],
                                                                       ut.current_tbatches_item[batch],
                                                                       ut.current_tbatches_user[batch])
-                                # SAVE THEM INTO LAST STATE
-                                for idx,one_user in enumerate(tbatch_userids):
-                                    last_true[one_user] = item_state[idx,:].detach()
                                 # CALCULATE THE PREDICTION LOSS
                                 pred_loss = MSELoss(predicted_item_embd,
-                                                torch.cat((item_state,
-                                                           item_embd_static[tbatch_itemids,:]),
-                                                          dim=1))
+                                                    torch.cat((item_state,item_embd_static[tbatch_itemids,:]),dim=1))
                                 loss += pred_loss
                                 total_pred_loss += pred_loss.item()
                                 # UPDATE THE ITEM EMBEDDING AND USER EMBEDDING BY RNN
@@ -182,6 +157,7 @@ def train(arg):
                                                                   item_state,
                                                                   timediffs=user_timediffs_tensor,
                                                                   select='user_update')
+
                                 next_input = torch.cat((user_embd_input, item_embd_input), dim=1).detach()
                                 item_embd_out_next = model.forward(next_input,
                                                                    item_next_embedding_previous * room_count[tbatch_itemids_previous],
@@ -204,13 +180,6 @@ def train(arg):
                         loss.backward()
                         opt.step()
                         opt.zero_grad()
-                        # # save the embeddings of this day
-                        # if epoch==59:
-                        #     out_user = user_embd.detach().cpu().numpy()
-                        #     out_item = item_embd.detach().cpu().numpy()
-                        #     with open("embeddings_for_everyday.pkl","ab") as f:
-                        #         pkl.dump(out_user, f, pkl.HIGHEST_PROTOCOL)
-                        #         pkl.dump(out_item, f, pkl.HIGHEST_PROTOCOL)
                         # RE-INITIALIZATION FOR NEXT BATCH
                         loss = 0
                         item_embd.detach_()
@@ -222,12 +191,10 @@ def train(arg):
                         tbatch_to_insert = -1
             # PRINT EPOCH LOSS
             print('\n\nTotal loss in epoch %d = %f' % (epoch, total_loss))
-            # WRITE LOSS INTO TENSORBOARD
-            # writer.add_scalar('train/loss', total_loss, epoch)
-            # writer.add_scalar('train/pred_loss', total_pred_loss, epoch)
+
             # SAVE MODEL
-            save_model(model, opt, arg, epoch, user_embd, item_embd,
-                       item_next_embd, train_end_idx, model_type, room_count)
+            save_model(model, opt, epoch, user_embd, item_embd,
+                       item_next_embd, room_count)
             # RE-INITIALIZATION FOR NEXT EPOCH
             user_embd = model.initial_user_embd.repeat(num_users, 1)
             item_embd = model.initial_item_embd.repeat(num_items, 1)
@@ -243,30 +210,30 @@ def train(arg):
     log.close()
 
 def main():
-    train_file = '../data/interactions.csv'
-    # embd_size = 128
+    train_file = './data/train.pkl'
+    embd_size = 128
     epochs = 60
     time_unit = 1
     lr = 3e-4
-    # gpuids = [0,1,2,3] * 5
-    # seeds = [291, 45, 887, 488, 306, 405, 576, 597, 68,
-    #          244, 790, 454, 760, 145, 318, 868, 586, 338, 911, 712]
-    gpuids = [0]
-    embd_sizes = [128]
-    # seeds = [2]
-    for idx, gpu in enumerate(gpuids):
-        embd_size = embd_sizes[idx]
-        seed = 2
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-        np.random.seed(seed)  # Numpy module.
-        random.seed(seed)  # Python random module.
-        torch.backends.cudnn.benchmark = False
-        torch.backends.cudnn.deterministic = True
-        arg = Args(train_file, embd_size, lr, epochs, time_unit, gpu, seed)
-        proc = multiprocessing.Process(target=train, args=(arg,))
-        proc.start()
+    gpuid = 0
+    seed = 2
+
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)  # Numpy module.
+    random.seed(seed)  # Python random module.
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+
+    arg = Args(train_file,
+               embd_size,
+               lr,
+               epochs,
+               time_unit,
+               gpuid,
+               seed)
+    train(arg)
 
 if __name__ == '__main__':
     main()

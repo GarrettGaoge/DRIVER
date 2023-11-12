@@ -4,7 +4,24 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f6b7a200-c318-46c1-9ca3-a96bc42f944f" name="Changes" comment="" />
+    <list default="true" id="f6b7a200-c318-46c1-9ca3-a96bc42f944f" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/sshConfigs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/webServers.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/data/room_state.pkl" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/data/test.pkl" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/data/train.pkl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DRIVER.py" beforeDir="false" afterPath="$PROJECT_DIR$/DRIVER.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/args.py" beforeDir="false" afterPath="$PROJECT_DIR$/args.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/eva_room_next_4.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/more_epoch.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/multi_times.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/multi_times_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/multi_times_test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/room_next_4.py" beforeDir="false" afterPath="$PROJECT_DIR$/room_next_4.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/room_room_util.py" beforeDir="false" afterPath="$PROJECT_DIR$/util.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -13,15 +30,23 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
   <component name="ProjectId" id="2M58bCUsLemJvM5Ea58xD6pvmdL" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "ASKED_ADD_EXTERNAL_FILES": "true",
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "WebServerToolWindowFactoryState": "true",
     "last_opened_file_path": "/Users/apple/Documents/GitHub/DRIVER",
     "node.js.detected.package.eslint": "true",
@@ -40,10 +65,14 @@
       <option name="presentableId" value="Default" />
       <updated>1677046151313</updated>
       <workItem from="1677046152511" duration="250000" />
+      <workItem from="1699761653336" duration="5706000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
   </component>
 </project>
